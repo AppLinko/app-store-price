@@ -1,0 +1,668 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="免费查询 App Store 应用价格，支持多地区价格对比、内购信息查询。快速查找应用在不同国家的定价和货币转换。">
+    <meta name="keywords" content="App Store, 应用价格, 价格查询, 内购, 地区价格, 货币转换, 应用商店">
+    <meta name="robots" content="index, follow">
+    <link rel="icon" href="/favicon.ico" type="image/x-icon">
+    <title>App Store 价格查询</title>
+
+    <!-- 预加载关键CSS资源 -->
+    <link rel="preload" href="https://cdn.tailwindcss.com" as="script">
+    <link rel="preload" href="https://cdn.jsdelivr.net/npm/daisyui@3.9.4/dist/full.css" as="style">
+
+    <!-- Tailwind CSS + DaisyUI -->
+    <link href="https://cdn.jsdelivr.net/npm/daisyui@3.9.4/dist/full.css" rel="stylesheet" type="text/css"/>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Alpine.js -->
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <!-- Axios -->
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <style>
+        /* 清爽色彩主题 */
+        :root {
+            --fresh-primary: #10b981; /* 翠绿色 */
+            --fresh-secondary: #06b6d4; /* 天蓝色 */
+            --fresh-accent: #14b8a6; /* 青绿色 */
+            --fresh-light: #f0fdfa; /* 淡青色背景 */
+            --fresh-gradient: linear-gradient(135deg, #a7f3d0 0%, #67e8f9 100%); /* 清爽渐变 */
+            --fresh-card-gradient: linear-gradient(145deg, #ffffff 0%, #f0f9ff 100%);
+        }
+
+        /* 页面背景渐变 - 优化渲染防止闪烁 */
+        html {
+            font-display: swap;
+            text-rendering: optimizeLegibility;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+
+        body {
+            background: linear-gradient(135deg, #ecfdf5 0%, #f0f9ff 50%, #fefce8 100%) !important;
+            min-height: 100vh;
+            /* 防止闪烁优化 */
+            transform: translateZ(0);
+            backface-visibility: hidden;
+            perspective: 1000px;
+        }
+
+        /* 主标题清爽样式 - 优化渐变文字渲染 */
+        .fresh-title {
+            background: var(--fresh-gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            text-shadow: 0 2px 10px rgba(16, 185, 129, 0.3);
+            /* 防止渐变文字闪烁 */
+            transform: translateZ(0);
+            will-change: background;
+            /* 确保平滑渲染 */
+            -webkit-backface-visibility: hidden;
+            backface-visibility: hidden;
+        }
+
+        /* 清爽按钮样式 - 优化渐变渲染 */
+        .btn-fresh-primary {
+            background: var(--fresh-gradient);
+            border: none;
+            color: white;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3);
+            /* 防止渐变闪烁 */
+            transform: translateZ(0);
+            will-change: transform, box-shadow;
+        }
+
+        .btn-fresh-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(16, 185, 129, 0.4);
+        }
+
+        .btn-fresh-secondary {
+            background: linear-gradient(135deg, #06b6d4, #0891b2);
+            border: none;
+            color: white;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(6, 182, 212, 0.3);
+            /* 防止渐变闪烁 */
+            transform: translateZ(0);
+            will-change: transform, box-shadow;
+        }
+
+        .btn-fresh-secondary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(6, 182, 212, 0.4);
+        }
+
+        /* 清爽卡片样式 */
+        .card-fresh {
+            background: var(--fresh-card-gradient);
+            border: 1px solid rgba(16, 185, 129, 0.1);
+            box-shadow: 0 4px 20px rgba(16, 185, 129, 0.1);
+            transition: all 0.3s ease;
+        }
+
+        .card-fresh:hover {
+            box-shadow: 0 8px 30px rgba(16, 185, 129, 0.15);
+            transform: translateY(-3px);
+        }
+
+        /* 价格显示清爽样式 */
+        .price-fresh {
+            color: var(--fresh-primary) !important;
+            font-weight: 600;
+        }
+
+        .price-cny-fresh {
+            color: var(--fresh-accent) !important;
+            font-weight: 500;
+        }
+
+        /* 文本截断样式 */
+        .line-clamp-2 {
+            overflow: hidden;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+        }
+
+        /* Toast动画 */
+        .toast {
+            animation: slideInDown 0.3s ease-out;
+        }
+
+        @keyframes slideInDown {
+            from {
+                transform: translate3d(0, -100%, 0);
+                visibility: visible;
+            }
+            to {
+                transform: translate3d(0, 0, 0);
+            }
+        }
+
+        /* 应用卡片悬停效果增强 */
+        .app-card {
+            transition: all 0.3s ease-in-out;
+            background: var(--fresh-card-gradient);
+            border: 1px solid rgba(16, 185, 129, 0.08);
+        }
+
+        .app-card:hover:not(.disabled) {
+            transform: translateY(-3px);
+            box-shadow: 0 12px 35px rgba(16, 185, 129, 0.15);
+            border-color: rgba(16, 185, 129, 0.2);
+        }
+
+        .app-card.disabled {
+            pointer-events: none;
+        }
+
+        /* 清爽加载动画 */
+        .loading-fresh {
+            color: var(--fresh-primary);
+        }
+
+        /* 清爽徽章样式 */
+        .badge-fresh {
+            background: var(--fresh-gradient);
+            color: #065f46; /* 深绿色文字，提高可读性 */
+            border: none;
+            font-weight: 600; /* 加粗文字 */
+        }
+
+        /* 统计卡片清爽样式 */
+        .stat-fresh {
+            background: linear-gradient(145deg, #f0fdfa, #ecfdf5);
+            border: 1px solid rgba(16, 185, 129, 0.1);
+            box-shadow: 0 2px 10px rgba(16, 185, 129, 0.05);
+        }
+
+        /* 滚动条清爽样式 */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #f0fdfa;
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: linear-gradient(180deg, #10b981, #14b8a6);
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: linear-gradient(180deg, #059669, #0f766e);
+        }
+
+        /* 页面加载过渡效果 */
+        body:not(.page-loaded) * {
+            transition: opacity 0.3s ease-in-out !important;
+        }
+
+        body:not(.page-loaded) {
+            opacity: 0;
+        }
+
+        body.page-loaded {
+            opacity: 1;
+        }
+
+        /* 渐进式内容显示 */
+        .fade-in {
+            animation: fadeInUp 0.6s ease-out forwards;
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+    </style>
+</head>
+<body class="min-h-screen" x-data="appStore()" :class="{ 'page-loaded': pageLoaded }">
+<div class="container mx-auto p-4">
+    <!-- 页面标题 -->
+    <div class="text-center mb-8 fade-in">
+        <h1 class="text-5xl font-bold fresh-title mb-4">App Store 价格查询</h1>
+        <p class="text-gray-600 text-lg">查询应用在不同地区的价格和内购信息</p>
+        <div class="mt-4">
+            <a href="https://github.com/hypooo" target="_blank" class="btn btn-sm btn-ghost">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
+                </svg>
+                GitHub
+            </a>
+        </div>
+    </div>
+
+    <!-- 按名称搜索应用 -->
+    <div class="card card-fresh shadow-xl mb-6 fade-in" style="animation-delay: 0.2s; animation-fill-mode: both;">
+        <div class="card-body">
+            <h2 class="card-title text-xl" style="color: var(--fresh-primary)">🔍 搜索应用</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="form-control">
+                    <label class="label">
+                        <span class="label-text">应用名称</span>
+                    </label>
+                    <label class="input input-bordered flex items-center gap-2">
+                        <input
+                            type="text"
+                            x-model="appName"
+                            placeholder="请输入应用名称，如：ChatGPT"
+                            class="grow"
+                            :disabled="loadingAppList || loading"
+                            @keyup.enter="loading ? null : searchAppList"
+                        />
+                        <button
+                            type="button"
+                            class="btn btn-ghost btn-xs"
+                            @click="appName = ''"
+                            title="清空应用名称"
+                        >
+                            ✕
+                        </button>
+                    </label>
+                </div>
+                <div class="form-control">
+                    <label class="label">
+                        <span class="label-text">地区代码</span>
+                    </label>
+                    <select x-model="areaCode" class="select select-bordered" :disabled="loadingAppList || loading || areaListLoading">
+                        <template x-for="area in areaList" :key="area.code">
+                            <option :value="area.code" x-text="area.name + ' (' + area.code.toUpperCase() + ')'"></option>
+                        </template>
+                        <template x-if="areaList.length === 0 && !areaListLoading">
+                            <option disabled selected>暂无地区数据</option>
+                        </template>
+                    </select>
+                    <div x-show="areaListError" class="text-red-500 text-sm mt-1" x-text="areaListError"></div>
+                </div>
+            </div>
+            <div class="form-control mt-4">
+                <button
+                    class="btn btn-fresh-secondary"
+                    @click="searchAppList"
+                    :disabled="loadingAppList || loading"
+                >
+                    <span x-show="!loadingAppList && !loading">🚀 搜索应用列表</span>
+                    <span x-show="loadingAppList" class="loading loading-spinner loading-sm loading-fresh"></span>
+                    <span x-show="loading" class="loading loading-spinner loading-sm loading-fresh"></span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 应用列表展示 -->
+    <div x-show="appList.length > 0 && !loadingAppList" x-transition class="mb-6">
+        <div class="card card-fresh shadow-xl">
+            <div class="card-body">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="card-title" style="color: var(--fresh-primary)">📱 搜索结果</h3>
+                    <button
+                        @click="appListCollapsed = !appListCollapsed"
+                        class="btn btn-sm btn-ghost"
+                        :title="appListCollapsed ? '展开搜索结果' : '折叠搜索结果'"
+                    >
+                        <svg x-show="!appListCollapsed" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7"/>
+                        </svg>
+                        <svg x-show="appListCollapsed" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                        </svg>
+                    </button>
+                </div>
+                <div x-show="!appListCollapsed" x-transition class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <template x-for="app in appList" :key="app.appId">
+                        <div class="card card-compact shadow transition-colors app-card"
+                             :class="loading ? 'cursor-not-allowed opacity-60 disabled' : 'cursor-pointer'"
+                             @click="loading ? null : selectApp(app)">
+                            <figure class="px-4 pt-4">
+                                <img :src="app.appImage" :alt="app.appName" class="w-16 h-16 rounded-lg"/>
+                            </figure>
+                            <div class="card-body">
+                                <div class="flex items-center justify-between">
+                                    <h4 class="font-bold text-sm flex-1" x-text="app.appName"></h4>
+                                    <div x-show="app.rating" class="flex items-center ml-2">
+                                        <div class="rating rating-xs">
+                                            <template x-for="i in 5" :key="i">
+                                                <input type="radio" :name="'rating-' + app.appId" class="mask mask-star-2 bg-orange-400" :checked="i <= Math.round(app.rating)" disabled />
+                                            </template>
+                                        </div>
+                                        <span class="text-xs font-medium ml-1" style="color: rgba(60, 60, 67, .6)" x-text="(app.rating).toFixed(1)"></span>
+                                    </div>
+                                </div>
+                                <p class="text-xs text-gray-600 line-clamp-2" x-text="app.appDesc"></p>
+                                <div class="text-xs font-medium mt-1" style="color: var(--fresh-accent)">
+                                    ID: <span x-text="app.appId"></span>
+                                </div>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+                <div x-show="appListCollapsed" x-transition
+                     class="text-center py-4 text-gray-500 cursor-pointer hover:bg-base-200 transition-colors rounded-lg"
+                     @click="appListCollapsed = !appListCollapsed">
+                    搜索结果已折叠，点击展开
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- 错误提示 -->
+    <div x-show="error || errorAppList" class="mb-6">
+        <div x-show="error" class="alert mb-2" style="background: linear-gradient(135deg, #fef2f2, #fee2e2); border: 1px solid #fca5a5; color: #dc2626;" x-transition>
+            <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+            </svg>
+            <span x-text="error"></span>
+        </div>
+        <div x-show="errorAppList" class="alert mb-2" style="background: linear-gradient(135deg, #fef2f2, #fee2e2); border: 1px solid #fca5a5; color: #dc2626;" x-transition>
+            <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+            </svg>
+            <span x-text="errorAppList"></span>
+        </div>
+    </div>
+
+    <!-- 加载状态 -->
+    <div x-show="loading || loadingAppList" class="flex justify-center items-center py-12">
+        <div class="loading loading-spinner loading-lg loading-fresh"></div>
+        <span x-show="loading" class="ml-2 text-lg" style="color: var(--fresh-primary)">⏳ 正在查询应用信息...</span>
+        <span x-show="loadingAppList" class="ml-2 text-lg" style="color: var(--fresh-primary)">🔍 正在搜索应用列表...</span>
+    </div>
+
+    <!-- 结果展示 -->
+    <div x-show="results.length > 0 && !loading" x-transition>
+        <h2 class="text-3xl font-bold mb-6 fresh-title">✨ 查询结果</h2>
+
+        <template x-for="app in results" :key="app.area">
+            <div class="card card-fresh shadow-lg mb-6">
+                <div class="card-body">
+                    <div class="flex flex-col lg:flex-row lg:items-start gap-4">
+                        <!-- 应用基本信息 -->
+                        <div class="flex-1">
+                            <div class="flex items-center gap-2 mb-2">
+                                <h3 class="card-title text-lg" style="color: var(--fresh-primary)" x-text="app.name"></h3>
+                                <div class="badge badge-fresh" x-text="app.area"></div>
+                            </div>
+                            <p class="text-gray-600 mb-2" x-text="app.subTitle"></p>
+                            <p class="text-sm text-gray-500 mb-3">
+                                👨‍💻 开发者: <span x-text="app.developer"></span>
+                            </p>
+
+                            <!-- 应用价格 -->
+                            <div class="stat stat-fresh rounded-lg p-4 mb-4">
+                                <div class="stat-title" style="color: var(--fresh-accent)">💰 应用价格</div>
+                                <div class="stat-value text-2xl price-fresh">
+                                    <span x-text="app.price.currency"></span>
+                                    <span x-text="app.price.price === 0 ? '免费' : app.price.price"></span>
+                                </div>
+                                <div x-show="app.price.price > 0 && app.price.cnyPrice > 0" class="stat-desc text-sm price-cny-fresh font-medium mt-1">
+                                    ≈ ¥<span x-text="app.price.cnyPrice.toFixed(2)"></span>
+                                </div>
+                            </div>
+
+                            <a :href="app.appStoreUrl" target="_blank" class="btn btn-sm btn-fresh-primary">
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25"/>
+                                </svg>
+                                查看App Store
+                            </a>
+                        </div>
+
+                        <!-- 内购信息 -->
+                        <div class="flex-1">
+                            <h4 class="font-bold mb-3" style="color: var(--fresh-primary)">🛒 内购项目</h4>
+                            <div x-show="app.inAppPurchaseList.length === 0" class="text-gray-500">
+                                暂无内购项目
+                            </div>
+                            <div class="space-y-3">
+                                <template x-for="(purchase, index) in app.inAppPurchaseList" :key="index">
+                                    <div class="card card-compact shadow" style="background: var(--fresh-card-gradient); border: 1px solid rgba(16, 185, 129, 0.1);">
+                                        <div class="card-body">
+                                            <div class="flex justify-between items-center">
+                                                <h5 class="font-medium text-gray-700" x-text="purchase.object"></h5>
+                                                <div class="text-right">
+                                                    <div class="font-bold price-fresh">
+                                                        <span x-text="purchase.price.currency"></span>
+                                                        <span x-text="purchase.price.price"></span>
+                                                    </div>
+                                                    <div x-show="purchase.price.cnyPrice > 0" class="text-sm price-cny-fresh font-medium">
+                                                        ≈ ¥<span x-text="purchase.price.cnyPrice.toFixed(2)"></span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </template>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </template>
+    </div>
+
+    <!-- 空状态 -->
+    <div x-show="!loading && results.length === 0 && !error && searched" class="text-center py-12">
+        <div class="text-6xl mb-4">📱</div>
+        <h3 class="text-xl font-bold mb-2" style="color: var(--fresh-primary)">未找到应用信息</h3>
+        <p class="text-gray-600">请检查App ID是否正确</p>
+    </div>
+
+    <!-- 初始状态 -->
+    <div x-show="!loading && results.length === 0 && !error && !searched" class="text-center py-12">
+        <div class="text-6xl mb-4">🔍</div>
+        <h3 class="text-xl font-bold mb-2" style="color: var(--fresh-primary)">开始查询</h3>
+        <p class="text-gray-600">请先搜索应用，然后点击选择应用来查询详细信息</p>
+    </div>
+</div>
+
+
+<script>
+    function appStore() {
+        return {
+            // 页面加载状态
+            pageLoaded: false,
+
+            // 搜索应用列表相关
+            appName: 'ChatGPT',
+            areaCode: 'us',
+            areaList: [],  // 地区列表
+            areaListError: '',  // 地区列表错误信息
+            areaListLoading: false,  // 地区列表加载状态
+            appList: [],
+            loadingAppList: false,
+            errorAppList: '',
+
+            // 查询应用信息相关
+            appId: '',
+            results: [],
+            loading: false,
+            error: '',
+            searched: false,
+
+            // 搜索结果折叠状态
+            appListCollapsed: false,
+
+            async searchAppList() {
+                if (!this.appName.trim()) {
+                    this.errorAppList = '请输入应用名称';
+                    return;
+                }
+
+                this.loadingAppList = true;
+                this.errorAppList = '';
+                this.appList = [];
+                // 清空之前的查询结果
+                this.results = [];
+                this.searched = false;
+                this.error = '';
+                // 展开搜索结果
+                this.appListCollapsed = false;
+
+                try {
+                    const response = await axios.post('/app/getAppList', {
+                        appName: this.appName.trim(),
+                        areaCode: this.areaCode
+                    }, {
+                        headers: {
+                            'Content-Type': 'application/json'
+                        }
+                    });
+
+                    if (response.data.code === 0) {
+                        this.appList = response.data.data || [];
+
+                        if (this.appList.length === 0) {
+                            this.errorAppList = '未找到相关应用';
+                        }
+                    } else {
+                        this.errorAppList = response.data.message || '搜索失败';
+                    }
+                } catch (err) {
+                    console.error('搜索应用列表错误:', err);
+                    this.errorAppList = '搜索失败，请检查网络连接或接口地址';
+                } finally {
+                    this.loadingAppList = false;
+                }
+            },
+
+            async selectApp(app) {
+                // 选择应用时自动填充appId并清空相关状态
+                this.appId = app.appId;
+                this.results = [];
+                this.error = '';
+                this.searched = false;
+
+                // 折叠搜索结果，以便更好地展示单个应用的查询结果
+                this.appListCollapsed = true;
+
+                // 提示用户正在查询详细信息
+                this.showToast(`已选择应用：${app.appName}，正在查询详细信息...`);
+
+                // 直接执行查询
+                await this.searchApp();
+            },
+
+            async searchApp() {
+                if (!this.appId.trim()) {
+                    this.error = '请输入App ID';
+                    return;
+                }
+
+                // 移除可能的"id"前缀，只保留数字ID
+                let cleanAppId = this.appId.trim();
+                if (cleanAppId.toLowerCase().startsWith('id')) {
+                    cleanAppId = cleanAppId.substring(2);
+                }
+
+                this.loading = true;
+                this.error = '';
+                this.results = [];
+
+                try {
+                    const response = await axios.post('/app/getAppInfo', {
+                        appId: cleanAppId
+                    }, {
+                        headers: {
+                            'Content-Type': 'application/json'
+                        }
+                    });
+
+                    if (response.data.code === 0) {
+                        this.results = response.data.data || [];
+                        this.searched = true;
+
+                        if (this.results.length === 0) {
+                            this.error = '未找到该应用的信息';
+                        }
+                    } else {
+                        this.error = response.data.message || '查询失败';
+                    }
+                } catch (err) {
+                    console.error('查询错误:', err);
+                    this.error = '查询失败，请检查网络连接或接口地址';
+                } finally {
+                    this.loading = false;
+                }
+            },
+
+            showToast(message) {
+                // 创建临时提示消息
+                const toast = document.createElement('div');
+                toast.className = 'toast toast-top toast-center z-50';
+                toast.innerHTML = `
+                                        <div class="alert" style="background: var(--fresh-gradient); color: white; border: none; box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3);">
+                                            <span>${message}</span>
+                                        </div>
+                                    `;
+                document.body.appendChild(toast);
+
+                // 3秒后移除提示
+                setTimeout(() => {
+                    toast.remove();
+                }, 3000);
+            },
+
+            async getAreaList() {
+                // 获取地区列表
+                this.areaListLoading = true;
+                this.areaListError = '';
+
+                try {
+                    const response = await axios.post('/app/getAreaList', {}, {
+                        headers: {
+                            'Content-Type': 'application/json'
+                        }
+                    });
+
+                    if (response.data.code === 0) {
+                        this.areaList = response.data.data || [];
+
+                        // 如果有地区列表且当前areaCode不在列表中，则设置为第一个地区
+                        if (this.areaList.length > 0 && !this.areaList.some(area => area.code === this.areaCode)) {
+                            this.areaCode = this.areaList[0].code;
+                        }
+                    } else {
+                        this.areaListError = response.data.message || '获取地区列表失败';
+                        // 不使用默认地区列表，保持areaList为空
+                        this.areaList = [];
+                    }
+                } catch (err) {
+                    console.error('获取地区列表错误:', err);
+                    this.areaListError = '获取地区列表失败，请检查网络连接或接口地址';
+                    // 不使用默认地区列表，保持areaList为空
+                    this.areaList = [];
+                } finally {
+                    this.areaListLoading = false;
+                }
+            },
+
+            init() {
+                // 获取地区列表
+                this.getAreaList();
+
+                // 页面加载完成后设置标志，避免闪烁
+                this.$nextTick(() => {
+                    setTimeout(() => {
+                        this.pageLoaded = true;
+                    }, 100);
+                });
+            }
+        }
+    }
+</script>
+</body>
+</html>

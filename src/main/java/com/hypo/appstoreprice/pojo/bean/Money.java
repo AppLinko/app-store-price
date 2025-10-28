@@ -1,0 +1,56 @@
+package com.hypo.appstoreprice.pojo.bean;
+
+import com.hypo.appstoreprice.common.ExchangeRateUtil;
+import com.hypo.appstoreprice.pojo.enums.AreaEnum;
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+import java.math.BigDecimal;
+
+/**
+ * money
+ *
+ * @author hypo
+ * @date 2025-09-16
+ */
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+public class Money {
+
+    /**
+     * currency
+     */
+    private String currency;
+
+    /**
+     * currency code
+     */
+    private String currencyCode;
+
+    /**
+     * price
+     */
+    private BigDecimal price;
+
+    /**
+     * cny price
+     */
+    private BigDecimal cnyPrice;
+
+    /**
+     * money
+     *
+     * @param currencyCode currency code
+     * @param price        price
+     */
+    public Money(String currencyCode, BigDecimal price) {
+        AreaEnum areaEnum = AreaEnum.getByCurrencyCode(currencyCode);
+        this.currency = areaEnum.getCurrency();
+        this.currencyCode = currencyCode;
+        this.price = price;
+        this.cnyPrice = ExchangeRateUtil.convertToCny(price, currencyCode);
+    }
+
+}
