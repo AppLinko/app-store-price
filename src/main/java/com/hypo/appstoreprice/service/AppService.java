@@ -109,7 +109,7 @@ public class AppService {
             String searchUrl = StrUtil.format("https://itunes.apple.com/search?term={}&country={}&entity=software", StrUtil.trim(reqDTO.getAppName()), reqDTO.getAreaCode());
             ForestResponse<?> response = Forest.get(searchUrl).execute(ForestResponse.class);
             if (response.getStatusCode() != HttpStatus.OK.value()) {
-                String errorMessage = StrUtil.format("search failed, appName: {}", reqDTO.getAreaCode(), reqDTO.getAppName());
+                String errorMessage = StrUtil.format("search failed, areaCode: {}, appName: {}", reqDTO.getAreaCode(), reqDTO.getAppName());
                 log.error(errorMessage);
                 throw new BizException(errorMessage);
             }
