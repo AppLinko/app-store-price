@@ -59,7 +59,7 @@ mvn clean package
 
 3. 运行应用
 ```bash
-java -jar target/app-store-price-1.0.0.jar
+java -jar target/app-store-price-x.x.x.jar
 ```
 
 4. 访问应用

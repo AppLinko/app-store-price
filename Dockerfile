@@ -19,7 +19,7 @@ WORKDIR /app
 EXPOSE 8080
 
 # 复制 jar 文件到容器中
-COPY ./target/app-store-price-1.0.0.jar ./app.jar
+COPY ./target/app-store-price-*.jar ./app.jar
 
 # 设置容器启动时执行的命令
 ENTRYPOINT ["java", "-jar", "app.jar"]
