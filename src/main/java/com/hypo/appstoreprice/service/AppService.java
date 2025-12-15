@@ -17,6 +17,7 @@ import com.google.common.collect.Multiset;
 import com.hypo.appstoreprice.common.BizException;
 import com.hypo.appstoreprice.pojo.bean.Money;
 import com.hypo.appstoreprice.pojo.enums.AreaEnum;
+import com.hypo.appstoreprice.pojo.enums.PlatformEnum;
 import com.hypo.appstoreprice.pojo.request.GetAppListReqDTO;
 import com.hypo.appstoreprice.pojo.response.*;
 import lombok.extern.slf4j.Slf4j;
@@ -89,15 +90,17 @@ public class AppService {
         // 记录搜索次数
         POPULAR_SEARCH_WORD.add(reqDTO.getAppName());
 
+        PlatformEnum platformEnum = PlatformEnum.fromCode(reqDTO.getPlatform());
+
         // 无锁检查缓存
-        String cacheKey = StrUtil.format("{}-{}", reqDTO.getAreaCode(), reqDTO.getAppName());
+        String cacheKey = StrUtil.format("{}-{}-{}", reqDTO.getAreaCode(), platformEnum.getCode(), reqDTO.getAppName());
         List<GetAppListResDTO> appListCache = APP_LIST_CACHE.get(cacheKey);
         if (CollUtil.isNotEmpty(appListCache)) {
             return appListCache;
         }
 
         // 获取锁对象（细粒度锁，按 appId 分段）
-        Object lock = LOCK_POOL.computeIfAbsent(StrUtil.format("getAppList-{}-{}", reqDTO.getAreaCode(), reqDTO.getAppName()), k -> new Object());
+        Object lock = LOCK_POOL.computeIfAbsent(StrUtil.format("getAppList-{}-{}-{}", reqDTO.getAreaCode(), platformEnum.getCode(), reqDTO.getAppName()), k -> new Object());
 
         synchronized (lock) {
             // 锁内再次检查缓存（双重检查）
@@ -106,7 +109,12 @@ public class AppService {
                 return appListCache;
             }
 
-            String searchUrl = StrUtil.format("https://itunes.apple.com/search?term={}&country={}&entity=software", StrUtil.trim(reqDTO.getAppName()), reqDTO.getAreaCode());
+            String searchUrl = StrUtil.format(
+                "https://itunes.apple.com/search?term={}&country={}&entity={}",
+                StrUtil.trim(reqDTO.getAppName()),
+                reqDTO.getAreaCode(),
+                platformEnum.getEntity()
+            );
             ForestResponse<?> response = Forest.get(searchUrl).execute(ForestResponse.class);
             if (response.getStatusCode() != HttpStatus.OK.value()) {
                 String errorMessage = StrUtil.format("search failed, areaCode: {}, appName: {}", reqDTO.getAreaCode(), reqDTO.getAppName());

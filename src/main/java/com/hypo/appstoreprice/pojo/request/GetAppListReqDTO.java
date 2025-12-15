@@ -26,4 +26,9 @@ public class GetAppListReqDTO {
     @Size(max = 20, message = "appName length must be less than or equal to 20")
     private String appName;
 
+    /**
+     * platform: ios/ipados/macos
+     */
+    private String platform;
+
 }
