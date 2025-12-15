@@ -527,11 +527,7 @@
             // 查询应用详情
             async searchApp() {
                 if (!this.appId) {
-                    let cleanAppId = this.appName.toString().trim();
-                    if (cleanAppId.toLowerCase().startsWith('id')) {
-                        cleanAppId = cleanAppId.substring(2);
-                    }
-                    this.appId = cleanAppId;
+                    this.appId = this.appName.toString().trim();
                 }
 
                 let cleanAppId = this.appId.toString().trim();
