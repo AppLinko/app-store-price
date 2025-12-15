@@ -191,6 +191,13 @@ public class AppService {
                 // 提取开发者信息
                 resDTO.setDeveloper(jsonResult.getJSONObject("developerAction").getString("title"));
                 resDTO.setAppStoreUrl(appStoreUrl);
+                // 提取应用图标
+                String template = jsonResult.getJSONObject("lockup").getJSONObject("icon").getString("template");
+                String appImage = "";
+                if (template != null) {
+                    appImage = template.replace("{w}x{h}{c}.{f}", "400x400bb-75.webp");
+                }
+                resDTO.setAppImage(appImage);
                 // 提取价格信息
                 resDTO.setPrice(parsePrice(jsonResult.getJSONObject("lockup").getJSONObject("buttonAction").getString("priceFormatted"), areaEnum));
                 // 查找所有内购列表项

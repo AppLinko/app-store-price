@@ -410,7 +410,7 @@
     function appStore() {
         return {
             // 状态变量
-            appName: 'ChatGPT',
+            appName: '',
             areaCode: 'us',
             areaList: [],
             areaListError: '',
@@ -438,14 +438,43 @@
                 this.getPopularSearchWords();
             },
 
+            // 检查输入是否为app ID
+            isAppId(input) {
+                if (!input) return false;
+                // 识别格式: id123456 或 123456 (纯数字)
+                const trimmed = input.trim().toLowerCase();
+                if (trimmed.startsWith('id') && /^\d+$/.test(trimmed.substring(2))) {
+                    return true;
+                }
+                if (/^\d+$/.test(trimmed)) {
+                    return true;
+                }
+                return false;
+            },
+
             // 搜索应用列表
             async searchAppList() {
                 if (!this.appName.trim()) {
-                    this.errorAppList = '请输入应用名称';
+                    this.errorAppList = '请输入应用名称或ID';
                     return;
                 }
 
-                if (this.appName.trim().length > 20) {
+                const input = this.appName.trim();
+
+                // 检查是否为app ID
+                if (this.isAppId(input)) {
+                    // 清空之前的状态
+                    this.appId = '';
+                    this.results = [];
+                    this.error = '';
+                    this.searched = false;
+                    this.appListCollapsed = true;
+                    this.appList = [];
+                    await this.searchApp();
+                    return;
+                }
+
+                if (input.length > 20) {
                     this.errorAppList = '应用名称长度不能超过20个字符';
                     return;
                 }
@@ -461,7 +490,7 @@
 
                 try {
                     const response = await axios.post('/app/getAppList', {
-                        appName: this.appName.trim(),
+                        appName: input,
                         areaCode: this.areaCode
                     });
 
@@ -497,7 +526,13 @@
 
             // 查询应用详情
             async searchApp() {
-                if (!this.appId) return;
+                if (!this.appId) {
+                    let cleanAppId = this.appName.toString().trim();
+                    if (cleanAppId.toLowerCase().startsWith('id')) {
+                        cleanAppId = cleanAppId.substring(2);
+                    }
+                    this.appId = cleanAppId;
+                }
 
                 let cleanAppId = this.appId.toString().trim();
                 if (cleanAppId.toLowerCase().startsWith('id')) {
@@ -517,6 +552,9 @@
                         this.searched = true;
                         if (this.results.length === 0) {
                             this.error = '未找到该应用的详细信息';
+                        } else {
+                            // 使用第一个结果的图片作为应用图标
+                            this.selectedAppImage = this.results[0].appImage || '';
                         }
                     } else {
                         this.error = response.data.message || '查询详情失败';

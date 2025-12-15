@@ -50,6 +50,11 @@ public class GetAppInfoResDTO {
     private String appStoreUrl;
 
     /**
+     * app image
+     */
+    private String appImage;
+
+    /**
      * price
      */
     private Money price;
